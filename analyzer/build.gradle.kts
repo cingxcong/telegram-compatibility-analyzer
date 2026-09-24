@@ -15,6 +15,7 @@ dependencies {
     implementation("org.jetbrains.kotlin:kotlin-stdlib")
     implementation("com.android.tools.smali:smali-dexlib2:3.0.10")
     implementation("net.dongliu:apk-parser:2.6.10")
+    implementation("com.fasterxml.jackson.module:jackson-module-kotlin:2.20.0")
     testImplementation(kotlin("test"))
 }
 
