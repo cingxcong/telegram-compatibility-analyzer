@@ -70,7 +70,7 @@ class DifferentialAnalyzerTest {
         sha256 = sha,
         packageName = "org.telegram.messenger",
         versionName = version,
-        versionCode = code,
+        versionCode = code.toLong(),
         dexEntries = listOf("classes.dex"),
         nativeLibraries = emptyList(),
         sizeBytes = 1
