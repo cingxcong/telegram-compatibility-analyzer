@@ -1,0 +1,108 @@
+package app.tca
+
+import com.android.tools.smali.dexlib2.DexFileFactory
+import com.android.tools.smali.dexlib2.Opcodes
+import com.android.tools.smali.dexlib2.iface.ClassDef
+import com.android.tools.smali.dexlib2.iface.Method
+import java.io.File
+import java.util.zip.ZipFile
+
+data class MethodIndex(
+    val definingClass: String,
+    val name: String,
+    val returnType: String,
+    val parameterTypes: List<String>,
+    val accessFlags: Int,
+    val instructionCount: Int,
+    val registerCount: Int,
+    val opcodeHistogram: Map<String, Int>
+) {
+    val signature: String
+        get() = definingClass + "->" + name + "(" + parameterTypes.joinToString("") + ")" + returnType
+}
+
+data class ClassIndex(
+    val type: String,
+    val superType: String?,
+    val interfaces: List<String>,
+    val accessFlags: Int,
+    val methodCount: Int,
+    val fieldCount: Int
+)
+
+data class DexIndex(
+    val dexName: String,
+    val classCount: Int,
+    val methodCount: Int,
+    val classes: List<ClassIndex>,
+    val methods: List<MethodIndex>
+)
+
+object DexIndexer {
+    fun indexApk(apk: File, apiLevel: Int = 35): List<DexIndex> {
+        require(apk.isFile) { "APK does not exist: " + apk.absolutePath }
+
+        return ZipFile(apk).use { zip ->
+            zip.entries().asSequence()
+                .filter { it.name.matches(Regex("classes\\d*\\.dex")) }
+                .sortedWith(compareBy<String> { dexNumber(it) }.thenBy { it })
+                .map { entry ->
+                    val bytes = zip.getInputStream(entry).use { it.readBytes() }
+                    indexDex(entry.name, bytes, apiLevel)
+                }
+                .toList()
+        }
+    }
+
+    private fun indexDex(name: String, bytes: ByteArray, apiLevel: Int): DexIndex {
+        val dexFile = DexFileFactory.loadDexFile(bytes, Opcodes.forApi(apiLevel))
+        val classes = dexFile.classes.toList().sortedBy { it.type }
+        val classIndexes = classes.map(::indexClass)
+        val methods = classes.flatMap { it.methods }.map(::indexMethod).sortedBy { it.signature }
+
+        return DexIndex(
+            dexName = name,
+            classCount = classes.size,
+            methodCount = methods.size,
+            classes = classIndexes,
+            methods = methods
+        )
+    }
+
+    private fun indexClass(classDef: ClassDef): ClassIndex =
+        ClassIndex(
+            type = classDef.type,
+            superType = classDef.superclass,
+            interfaces = classDef.interfaces.sorted(),
+            accessFlags = classDef.accessFlags,
+            methodCount = classDef.methods.count(),
+            fieldCount = classDef.fields.count()
+        )
+
+    private fun indexMethod(method: Method): MethodIndex {
+        val implementation = method.implementation
+        val histogram = linkedMapOf<String, Int>()
+        var instructionCount = 0
+
+        implementation?.instructions?.forEach { instruction ->
+            instructionCount++
+            val opcode = instruction.opcode.name
+            histogram[opcode] = (histogram[opcode] ?: 0) + 1
+        }
+
+        return MethodIndex(
+            definingClass = method.definingClass,
+            name = method.name,
+            returnType = method.returnType,
+            parameterTypes = method.parameterTypes.toList(),
+            accessFlags = method.accessFlags,
+            instructionCount = instructionCount,
+            registerCount = implementation?.registerCount ?: 0,
+            opcodeHistogram = histogram.toSortedMap()
+        )
+    }
+
+    private fun dexNumber(name: String): Int =
+        if (name == "classes.dex") 1
+        else Regex("classes(\\d+)\\.dex").matchEntire(name)?.groupValues?.get(1)?.toInt() ?: Int.MAX_VALUE
+}
