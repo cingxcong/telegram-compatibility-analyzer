@@ -45,7 +45,7 @@ fun main(args: Array<String>) {
         "summary" to mapOf(
             "status" to summaryStatus,
             "exactMatches" to matches.count { it.status == "EXACT" },
-            "migratedMatches" to 0,
+            "migratedMatches" to matches.count { it.status == "MIGRATED" },
             "reviewMatches" to matches.count { it.status == "REVIEW" },
             "brokenMatches" to matches.count { it.status == "BROKEN" }
         ),
