@@ -121,7 +121,7 @@ object DexIndexer {
         val classes = dexFile.classes.toList().sortedBy { it.type }
         val classIndexes = classes.map(::indexClass)
         val classByType = classes.associateBy { it.type }
-        val methods = classes.flatMap { it.methods }.map { method ->
+        val methods: List<MethodIndex> = classes.flatMap { it.methods.toList() }.map { method ->
             indexMethod(method, classByType)
         }.sortedBy { it.signature }
 
