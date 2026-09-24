@@ -29,10 +29,11 @@ object DifferentialAnalyzer {
         val oldMethods = oldIndexes.flatMap { it.methods }
         val newMethods = newIndexes.flatMap { it.methods }
         val newBySignature = newMethods.associateBy { it.signature }
+        val newByPrototype = newMethods.groupBy { it.returnType to it.parameterTypes }
 
         val migrations = oldMethods.asSequence()
             .filter { old -> newBySignature[old.signature] == null }
-            .map { old -> migrate(old, newMethods) }
+            .map { old -> migrate(old, newByPrototype[old.returnType to old.parameterTypes].orEmpty()) }
             .filter { it.status != "UNCHANGED" }
             .sortedWith(compareBy<MethodMigration> { it.status }.thenByDescending { it.confidence })
             .toList()
