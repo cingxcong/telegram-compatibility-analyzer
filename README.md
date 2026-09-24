@@ -65,6 +65,18 @@ Telegram APK URL / local APK
 
 Telegram APK -> metadata -> DEX extraction -> bytecode index -> fingerprint import -> structural matching -> JSON compatibility report.
 
+## CLI prototype
+
+The analyzer now has a real APK intake and DEX indexing layer. The CLI accepts a local APK path and reports SHA-256, package/version metadata, DEX inventory, native libraries, class counts, method counts, and per-method opcode histograms in memory.
+
+Example:
+
+```bash
+gradle :analyzer:run --args="/path/to/telegram.apk"
+```
+
+The bytecode layer uses Google's `com.android.tools.smali:smali-dexlib2:3.0.10`, which is the same major tool family used for the authoritative DEX representation. APK manifest metadata is read with `net.dongliu:apk-parser:2.6.10`. The Google smali project documents the `smali-dexlib2` artifact as the DEX library for reading/modifying/writing DEX files. citeturn1search3turn1search0
+
 ## Status
 
-🚧 Initial repository scaffold.
+🚧 Milestone 1 in progress: APK intake + bytecode indexer landed. Next: fingerprint schema/import and structural candidate matching.
