@@ -142,7 +142,15 @@ object DifferentialAnalyzer {
         )
     }
 
-    private fun targetOverlap(old: Map<String, Int>, current: Map<String, Int>): Double {\n        if (old.isEmpty() && current.isEmpty()) return 1.0\n        if (old.isEmpty() || current.isEmpty()) return 0.0\n        val oldKeys = old.keys\n        val currentKeys = current.keys\n        return oldKeys.intersect(currentKeys).size.toDouble() / oldKeys.union(currentKeys).size.toDouble()\n    }\n\n    private fun callPrototypeSimilarity(old: Map<String, Int>, current: Map<String, Int>): Double {
+    private fun targetOverlap(old: Map<String, Int>, current: Map<String, Int>): Double {
+        if (old.isEmpty() && current.isEmpty()) return 1.0
+        if (old.isEmpty() || current.isEmpty()) return 0.0
+        val oldKeys = old.keys
+        val currentKeys = current.keys
+        return oldKeys.intersect(currentKeys).size.toDouble() / oldKeys.union(currentKeys).size.toDouble()
+    }
+
+    private fun callPrototypeSimilarity(old: Map<String, Int>, current: Map<String, Int>): Double {
         if (old.isEmpty() && current.isEmpty()) return 1.0
         if (old.isEmpty() || current.isEmpty()) return 0.0
         val keys = old.keys union current.keys
