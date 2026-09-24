@@ -4,6 +4,9 @@ import com.android.tools.smali.dexlib2.Opcodes
 import com.android.tools.smali.dexlib2.dexbacked.DexBackedDexFile
 import com.android.tools.smali.dexlib2.iface.ClassDef
 import com.android.tools.smali.dexlib2.iface.Method
+import com.android.tools.smali.dexlib2.iface.MethodReference
+import com.android.tools.smali.dexlib2.iface.instruction.ReferenceInstruction
+import com.android.tools.smali.dexlib2.util.ReferenceUtil
 import java.io.File
 import java.util.zip.ZipFile
 
@@ -16,6 +19,7 @@ data class MethodIndex(
     val instructionCount: Int,
     val registerCount: Int,
     val opcodeHistogram: Map<String, Int>,
+    val callPrototypeHistogram: Map<String, Int> = emptyMap(),
     val classSuperType: String? = null,
     val classInterfaces: List<String> = emptyList()
 ) {
@@ -88,11 +92,17 @@ object DexIndexer {
         val implementation = method.implementation
         val histogram = linkedMapOf<String, Int>()
         var instructionCount = 0
+        val callPrototypes = linkedMapOf<String, Int>()
 
         implementation?.instructions?.forEach { instruction ->
             instructionCount++
             val opcode = instruction.opcode.name
             histogram[opcode] = (histogram[opcode] ?: 0) + 1
+            if (instruction is ReferenceInstruction && instruction.reference is MethodReference) {
+                val ref = instruction.reference as MethodReference
+                val prototype = ReferenceUtil.getMethodDescriptor(ref).substringAfter("->")
+                callPrototypes[prototype] = (callPrototypes[prototype] ?: 0) + 1
+            }
         }
 
         val classDef = classes[method.definingClass]
@@ -107,6 +117,7 @@ object DexIndexer {
             instructionCount = instructionCount,
             registerCount = implementation?.registerCount ?: 0,
             opcodeHistogram = histogram.toSortedMap(),
+            callPrototypeHistogram = callPrototypes.toSortedMap(),
             classSuperType = classDef.superclass,
             classInterfaces = classDef.interfaces.sorted()
         )
