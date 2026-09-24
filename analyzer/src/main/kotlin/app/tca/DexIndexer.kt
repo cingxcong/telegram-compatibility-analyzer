@@ -19,9 +19,9 @@ data class MethodIndex(
     val instructionCount: Int,
     val registerCount: Int,
     val opcodeHistogram: Map<String, Int>,
-    val callPrototypeHistogram: Map<String, Int> = emptyMap(),
     val classSuperType: String? = null,
-    val classInterfaces: List<String> = emptyList()
+    val classInterfaces: List<String> = emptyList(),
+    val callPrototypeHistogram: Map<String, Int> = emptyMap()
 ) {
     val signature: String
         get() = definingClass + "->" + name + "(" + parameterTypes.joinToString("") + ")" + returnType
