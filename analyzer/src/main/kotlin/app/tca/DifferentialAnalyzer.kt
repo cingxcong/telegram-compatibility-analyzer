@@ -41,13 +41,15 @@ object DifferentialAnalyzer {
     ) {
         val combinedScore: Double
             get() {
-                val classWeight = if (classContextScore > 0.0) CLASS_CONTEXT_WEIGHT else 0.0
-                val callWeight = if (callContextScore > 0.0) CALL_CONTEXT_WEIGHT else 0.0
-                val neighborhoodWeight = 0.10
-                val structuralWeight = 1.0 - classWeight - callWeight - neighborhoodWeight
+                val contextWeight =
+                    (if (classContextScore > 0.0) CLASS_CONTEXT_WEIGHT else 0.0) +
+                    (if (callContextScore > 0.0) CALL_CONTEXT_WEIGHT else 0.0) +
+                    (if (neighborhoodScore > 0.0) 0.10 else 0.0)
+                val structuralWeight = 1.0 - contextWeight
                 return structuralScore * structuralWeight +
-                    classContextScore * classWeight +
-                    callContextScore * callWeight
+                    classContextScore * (if (classContextScore > 0.0) CLASS_CONTEXT_WEIGHT else 0.0) +
+                    callContextScore * (if (callContextScore > 0.0) CALL_CONTEXT_WEIGHT else 0.0) +
+                    neighborhoodScore * (if (neighborhoodScore > 0.0) 0.10 else 0.0)
             }
     }
 
