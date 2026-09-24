@@ -1,0 +1,50 @@
+{
+  "schemaVersion": "1",
+  "fingerprints": [
+    {
+      "id": "telegram.messageObject.isVoice",
+      "definingClass": "Lorg/telegram/messenger/MessageObject;",
+      "name": "isVoice",
+      "returnType": "Z",
+      "parameterTypes": [],
+      "tags": ["telegram", "method"],
+      "automation": "review"
+    },
+    {
+      "id": "telegram.messageObject.isMusic",
+      "definingClass": "Lorg/telegram/messenger/MessageObject;",
+      "name": "isMusic",
+      "returnType": "Z",
+      "parameterTypes": [],
+      "tags": ["telegram", "method"],
+      "automation": "review"
+    },
+    {
+      "id": "telegram.fileLoadOperation.updateParams",
+      "definingClass": "Lorg/telegram/messenger/FileLoadOperation;",
+      "name": "updateParams",
+      "returnType": "V",
+      "parameterTypes": [],
+      "tags": ["telegram", "method", "download"],
+      "automation": "allowed"
+    },
+    {
+      "id": "telegram.sharedConfig.isAppUpdateAvailable",
+      "definingClass": "Lorg/telegram/messenger/SharedConfig;",
+      "name": "isAppUpdateAvailable",
+      "returnType": "Z",
+      "parameterTypes": [],
+      "tags": ["telegram", "method", "update"],
+      "automation": "allowed"
+    },
+    {
+      "id": "telegram.messagesController.isSponsoredDisabled",
+      "definingClass": "Lorg/telegram/messenger/MessagesController;",
+      "name": "isSponsoredDisabled",
+      "returnType": "Z",
+      "parameterTypes": [],
+      "tags": ["telegram", "method", "ads"],
+      "automation": "allowed"
+    }
+  ]
+}
