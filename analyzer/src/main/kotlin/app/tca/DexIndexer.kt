@@ -21,7 +21,8 @@ data class MethodIndex(
     val opcodeHistogram: Map<String, Int>,
     val classSuperType: String? = null,
     val classInterfaces: List<String> = emptyList(),
-    val callPrototypeHistogram: Map<String, Int> = emptyMap()
+    val callPrototypeHistogram: Map<String, Int> = emptyMap(),
+    val callTargetHistogram: Map<String, Int> = emptyMap()
 ) {
     val signature: String
         get() = definingClass + "->" + name + "(" + parameterTypes.joinToString("") + ")" + returnType
@@ -93,6 +94,7 @@ object DexIndexer {
         val histogram = linkedMapOf<String, Int>()
         var instructionCount = 0
         val callPrototypes = linkedMapOf<String, Int>()
+        val callTargets = linkedMapOf<String, Int>()
 
         implementation?.instructions?.forEach { instruction ->
             instructionCount++
@@ -102,6 +104,8 @@ object DexIndexer {
                 val ref = instruction.reference as MethodReference
                 val prototype = ReferenceUtil.getMethodDescriptor(ref).substringAfter("->")
                 callPrototypes[prototype] = (callPrototypes[prototype] ?: 0) + 1
+                val target = ref.definingClass + "->" + ref.name + "(" + ref.parameterTypes.joinToString("") + ")" + ref.returnType
+                callTargets[target] = (callTargets[target] ?: 0) + 1
             }
         }
 
@@ -118,6 +122,7 @@ object DexIndexer {
             registerCount = implementation?.registerCount ?: 0,
             opcodeHistogram = histogram.toSortedMap(),
             callPrototypeHistogram = callPrototypes.toSortedMap(),
+            callTargetHistogram = callTargets.toSortedMap(),
             classSuperType = classDef.superclass,
             classInterfaces = classDef.interfaces.sorted()
         )
