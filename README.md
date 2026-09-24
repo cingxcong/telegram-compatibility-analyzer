@@ -77,6 +77,30 @@ gradle :analyzer:run --args="/path/to/telegram.apk"
 
 The bytecode layer uses Google's `com.android.tools.smali:smali-dexlib2:3.0.10`, which is the same major tool family used for the authoritative DEX representation. APK manifest metadata is read with `net.dongliu:apk-parser:2.6.10`. Fingerprint/report JSON is handled with Jackson Kotlin. The Google smali project documents the `smali-dexlib2` artifact as the DEX library for reading/modifying/writing DEX files.
 
+## Differential analysis
+
+Compare two Telegram APKs directly:
+
+```bash
+./gradlew :analyzer:run --args="--diff old.apk new.apk build/report"
+```
+
+The differential engine records:
+
+- exact signature preservation
+- structural bytecode similarity
+- declaring-class migration context
+- outgoing method-call prototype similarity
+- top candidate migrations with independent score components
+- conservative `MIGRATED`, `REVIEW`, and `BROKEN` states
+- machine-readable JSON plus a Markdown summary
+
+The migration evidence is deliberately structured rather than encoded into display strings, making it suitable for dashboards, regression tests, and future scoring models.
+
+## GitHub Actions
+
+The repository includes a manual URL-driven differential workflow. Provide old/new APK URLs and optional SHA-256 values; the workflow downloads both artifacts, verifies hashes when supplied, runs the analyzer tests, and uploads the generated report.
+
 ## Status
 
-🚧 Milestone 2 in progress: fingerprint schema/import + exact bytecode matching landed. The CLI now emits a schema-shaped JSON compatibility report; structural migration and confidence scoring are next.
+🚧 Milestone 3 in progress: differential migration intelligence now combines structural, class-context, and call-shape evidence. Next layers are caller/callee neighborhood analysis, CFG similarity, caching, and richer report visualization.
