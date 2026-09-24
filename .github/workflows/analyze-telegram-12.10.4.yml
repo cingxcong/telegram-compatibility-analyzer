@@ -6,7 +6,7 @@ on:
       - analyze-telegram-12.10.4
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   analyze:
@@ -30,13 +30,25 @@ jobs:
           set -euo pipefail
           mkdir -p build/apks
           curl --fail --location --retry 3 --retry-all-errors --output build/apks/telegram-12.10.4.apk https://telegram.org/dl/android/apk
-          sha256sum build/apks/telegram-12.10.4.apk
+          sha256sum build/apks/telegram-12.10.4.apk | tee build/telegram-sha256.txt
           ls -lh build/apks/telegram-12.10.4.apk
 
       - name: Run APK analyzer
         run: |
           set -euo pipefail
-          gradle :analyzer:test :analyzer:run --args="build/apks/telegram-12.10.4.apk"
+          gradle :analyzer:test :analyzer:run --args="build/apks/telegram-12.10.4.apk" 2>&1 | tee build/telegram-analyzer.log
+
+      - name: Persist analysis report
+        run: |
+          set -euo pipefail
+          mkdir -p reports/telegram-12.10.4
+          cp build/telegram-sha256.txt reports/telegram-12.10.4/
+          cp build/telegram-analyzer.log reports/telegram-12.10.4/
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add reports/telegram-12.10.4
+          git commit -m "analysis: Telegram 12.10.4 APK intake" || true
+          git push
 
       - name: Upload analyzer output
         uses: actions/upload-artifact@v4
@@ -45,4 +57,5 @@ jobs:
           path: |
             build/**
             analyzer/build/**
+            reports/telegram-12.10.4/**
           if-no-files-found: warn
