@@ -2,6 +2,7 @@ package app.tca
 
 import com.android.tools.smali.dexlib2.DexFileFactory
 import com.android.tools.smali.dexlib2.Opcodes
+import com.android.tools.smali.dexlib2.dexbacked.DexBackedDexFile
 import com.android.tools.smali.dexlib2.iface.ClassDef
 import com.android.tools.smali.dexlib2.iface.Method
 import java.io.File
@@ -45,7 +46,7 @@ object DexIndexer {
         return ZipFile(apk).use { zip ->
             zip.entries().asSequence()
                 .filter { it.name.matches(Regex("classes\\d*\\.dex")) }
-                .sortedWith(compareBy<String> { dexNumber(it) }.thenBy { it })
+                .sortedWith(compareBy<java.util.zip.ZipEntry> { dexNumber(it.name) }.thenBy { it.name })
                 .map { entry ->
                     val bytes = zip.getInputStream(entry).use { it.readBytes() }
                     indexDex(entry.name, bytes, apiLevel)
@@ -55,7 +56,7 @@ object DexIndexer {
     }
 
     private fun indexDex(name: String, bytes: ByteArray, apiLevel: Int): DexIndex {
-        val dexFile = DexFileFactory.loadDexFile(bytes, Opcodes.forApi(apiLevel))
+        val dexFile = DexBackedDexFile.fromInputStream(Opcodes.forApi(apiLevel), bytes.inputStream())
         val classes = dexFile.classes.toList().sortedBy { it.type }
         val classIndexes = classes.map(::indexClass)
         val methods = classes.flatMap { it.methods }.map(::indexMethod).sortedBy { it.signature }
@@ -94,7 +95,7 @@ object DexIndexer {
             definingClass = method.definingClass,
             name = method.name,
             returnType = method.returnType,
-            parameterTypes = method.parameterTypes.toList(),
+            parameterTypes = method.parameterTypes.map(CharSequence::toString),
             accessFlags = method.accessFlags,
             instructionCount = instructionCount,
             registerCount = implementation?.registerCount ?: 0,
