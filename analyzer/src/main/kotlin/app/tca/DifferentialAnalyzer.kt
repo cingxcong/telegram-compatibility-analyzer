@@ -56,7 +56,7 @@ object DifferentialAnalyzer {
     private fun migrate(old: MethodIndex, newMethods: List<MethodIndex>): MethodMigration {
         val candidates = newMethods.asSequence()
             .filter { it.returnType == old.returnType && it.parameterTypes == old.parameterTypes }
-            .map { it to StructuralSimilarity.score(old, it) }
+            .map { it to FingerprintMatcher.score(old, it) }
             .filter { it.second > 0.0 }
             .sortedByDescending { it.second }
             .take(10)
