@@ -1,6 +1,5 @@
 package app.tca
 
-import com.android.tools.smali.dexlib2.DexFileFactory
 import com.android.tools.smali.dexlib2.Opcodes
 import com.android.tools.smali.dexlib2.dexbacked.DexBackedDexFile
 import com.android.tools.smali.dexlib2.iface.ClassDef
@@ -16,7 +15,9 @@ data class MethodIndex(
     val accessFlags: Int,
     val instructionCount: Int,
     val registerCount: Int,
-    val opcodeHistogram: Map<String, Int>
+    val opcodeHistogram: Map<String, Int>,
+    val classSuperType: String? = null,
+    val classInterfaces: List<String> = emptyList()
 ) {
     val signature: String
         get() = definingClass + "->" + name + "(" + parameterTypes.joinToString("") + ")" + returnType
@@ -59,7 +60,9 @@ object DexIndexer {
         val dexFile = DexBackedDexFile.fromInputStream(Opcodes.forApi(apiLevel), bytes.inputStream())
         val classes = dexFile.classes.toList().sortedBy { it.type }
         val classIndexes = classes.map(::indexClass)
-        val methods = classes.flatMap { it.methods }.map(::indexMethod).sortedBy { it.signature }
+        val methods = classes.flatMap { it.methods }.map { method ->
+            indexMethod(method, classes)
+        }.sortedBy { it.signature }
 
         return DexIndex(
             dexName = name,
@@ -80,7 +83,7 @@ object DexIndexer {
             fieldCount = classDef.fields.count()
         )
 
-    private fun indexMethod(method: Method): MethodIndex {
+    private fun indexMethod(method: Method, classes: List<ClassDef>): MethodIndex {
         val implementation = method.implementation
         val histogram = linkedMapOf<String, Int>()
         var instructionCount = 0
@@ -91,6 +94,8 @@ object DexIndexer {
             histogram[opcode] = (histogram[opcode] ?: 0) + 1
         }
 
+        val classDef = classes.first { it.type == method.definingClass }
+
         return MethodIndex(
             definingClass = method.definingClass,
             name = method.name,
@@ -99,7 +104,9 @@ object DexIndexer {
             accessFlags = method.accessFlags,
             instructionCount = instructionCount,
             registerCount = implementation?.registerCount ?: 0,
-            opcodeHistogram = histogram.toSortedMap()
+            opcodeHistogram = histogram.toSortedMap(),
+            classSuperType = classDef.superclass,
+            classInterfaces = classDef.interfaces.sorted()
         )
     }
 
