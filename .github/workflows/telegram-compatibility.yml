@@ -1,0 +1,85 @@
+name: Telegram Compatibility Analysis
+
+on:
+  workflow_dispatch:
+    inputs:
+      old_apk_url:
+        description: "Old Telegram APK HTTPS URL"
+        required: true
+        type: string
+      new_apk_url:
+        description: "New Telegram APK HTTPS URL"
+        required: true
+        type: string
+      old_sha256:
+        description: "Optional SHA-256 for old APK"
+        required: false
+        type: string
+      new_sha256:
+        description: "Optional SHA-256 for new APK"
+        required: false
+        type: string
+      run_secondary_analysis:
+        description: "Run additional static analysis stages"
+        required: true
+        default: true
+        type: boolean
+
+permissions:
+  contents: read
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout analyzer
+        uses: actions/checkout@v5
+
+      - name: Setup Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Download APKs
+        env:
+          OLD_URL: ${{ inputs.old_apk_url }}
+          NEW_URL: ${{ inputs.new_apk_url }}
+        run: |
+          set -euo pipefail
+          mkdir -p build/apks
+          curl --fail --location --retry 3 --retry-all-errors --output build/apks/old.apk "$OLD_URL"
+          curl --fail --location --retry 3 --retry-all-errors --output build/apks/new.apk "$NEW_URL"
+          ls -lh build/apks
+
+      - name: Verify SHA-256
+        env:
+          OLD_SHA256: ${{ inputs.old_sha256 }}
+          NEW_SHA256: ${{ inputs.new_sha256 }}
+        run: |
+          set -euo pipefail
+          old_actual="$(sha256sum build/apks/old.apk | awk '{print $1}')"
+          new_actual="$(sha256sum build/apks/new.apk | awk '{print $1}')"
+          echo "old_sha256=$old_actual"
+          echo "new_sha256=$new_actual"
+          if [ -n "$OLD_SHA256" ] && [ "$old_actual" != "${OLD_SHA256,,}" ]; then
+            echo "::error::Old APK SHA-256 mismatch"
+            exit 1
+          fi
+          if [ -n "$NEW_SHA256" ] && [ "$new_actual" != "${NEW_SHA256,,}" ]; then
+            echo "::error::New APK SHA-256 mismatch"
+            exit 1
+          fi
+
+      - name: Run differential analyzer
+        run: |
+          chmod +x ./gradlew
+          ./gradlew :analyzer:test :analyzer:run --args="compare build/apks/old.apk build/apks/new.apk --output build/report"
+
+      - name: Upload reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: telegram-compatibility-report
+          path: build/report/
+          if-no-files-found: error
