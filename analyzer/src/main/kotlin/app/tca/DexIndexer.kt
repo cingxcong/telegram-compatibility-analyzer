@@ -7,7 +7,10 @@ import com.android.tools.smali.dexlib2.iface.Method
 import com.android.tools.smali.dexlib2.iface.reference.MethodReference
 import com.android.tools.smali.dexlib2.iface.instruction.ReferenceInstruction
 import com.android.tools.smali.dexlib2.util.ReferenceUtil
+import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import java.io.File
+import java.nio.file.Files
+import java.nio.file.StandardCopyOption
 import java.util.zip.ZipFile
 
 data class MethodIndex(
@@ -49,6 +52,55 @@ data class DexIndex(
 )
 
 object DexIndexer {
+    private const val CACHE_VERSION = "1"
+
+    fun indexApkCached(
+        apk: File,
+        sha256: String,
+        apiLevel: Int = 35,
+        cacheDir: File = defaultCacheDir()
+    ): List<DexIndex> {
+        require(apk.isFile) { "APK does not exist: " + apk.absolutePath }
+        val cacheFile = File(cacheDir, "$sha256-api$apiLevel-v$CACHE_VERSION.json")
+        val mapper = jacksonObjectMapper()
+        if (cacheFile.isFile) {
+            return runCatching {
+                mapper.readValue(
+                    cacheFile,
+                    mapper.typeFactory.constructCollectionType(List::class.java, DexIndex::class.java)
+                )
+            }.getOrElse {
+                cacheFile.delete()
+                buildAndCache(apk, apiLevel, cacheFile, mapper)
+            }
+        }
+        return buildAndCache(apk, apiLevel, cacheFile, mapper)
+    }
+
+    private fun buildAndCache(
+        apk: File,
+        apiLevel: Int,
+        cacheFile: File,
+        mapper: com.fasterxml.jackson.databind.ObjectMapper
+    ): List<DexIndex> {
+        val indexes = indexApk(apk, apiLevel)
+        runCatching {
+            cacheFile.parentFile?.mkdirs()
+            val temp = File.createTempFile("tca-index-", ".tmp", cacheFile.parentFile)
+            mapper.writeValue(temp, indexes)
+            Files.move(
+                temp.toPath(),
+                cacheFile.toPath(),
+                StandardCopyOption.REPLACE_EXISTING,
+                StandardCopyOption.ATOMIC_MOVE
+            )
+        }
+        return indexes
+    }
+
+    fun defaultCacheDir(): File =
+        File(System.getProperty("user.home"), ".cache/telegram-compatibility-analyzer/index")
+
     fun indexApk(apk: File, apiLevel: Int = 35): List<DexIndex> {
         require(apk.isFile) { "APK does not exist: " + apk.absolutePath }
 
