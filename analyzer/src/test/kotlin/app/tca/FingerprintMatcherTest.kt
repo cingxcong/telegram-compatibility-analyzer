@@ -2,6 +2,7 @@ package app.tca
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 class FingerprintMatcherTest {
     @Test
@@ -14,7 +15,7 @@ class FingerprintMatcherTest {
             accessFlags = 1,
             instructionCount = 3,
             registerCount = 2,
-            opcodeHistogram = mapOf("RETURN" to 1)
+            opcodeHistogram = mapOf("CONST_4" to 1, "RETURN" to 1)
         )
         val index = DexIndex("classes.dex", 1, 1, emptyList(), listOf(method))
         val fingerprint = Fingerprint(
@@ -30,6 +31,61 @@ class FingerprintMatcherTest {
         assertEquals("EXACT", result.status)
         assertEquals(1.0, result.confidence)
         assertEquals(method.signature, result.matchedSignature)
+    }
+
+    @Test
+    fun structuralMigrationIsDetected() {
+        val oldShape = Fingerprint(
+            id = "test.migrated",
+            definingClass = "Lold/Obfuscated;",
+            name = "a",
+            returnType = "Z",
+            parameterTypes = listOf("I"),
+            instructionCount = 4,
+            registerCount = 3,
+            opcodeHistogram = mapOf("CONST_4" to 1, "IF_EQZ" to 1, "RETURN" to 2)
+        )
+        val migrated = MethodIndex(
+            definingClass = "Lnew/Obfuscated;",
+            name = "b",
+            returnType = "Z",
+            parameterTypes = listOf("I"),
+            accessFlags = 1,
+            instructionCount = 4,
+            registerCount = 3,
+            opcodeHistogram = mapOf("CONST_4" to 1, "IF_EQZ" to 1, "RETURN" to 2)
+        )
+        val result = FingerprintMatcher.match(
+            listOf(DexIndex("classes.dex", 1, 1, emptyList(), listOf(migrated))),
+            listOf(oldShape)
+        ).single()
+
+        assertEquals("MIGRATED", result.status)
+        assertEquals(migrated.signature, result.matchedSignature)
+        assertTrue(result.confidence >= 0.95)
+    }
+
+    @Test
+    fun ambiguousStructuralCandidatesRequireReview() {
+        val fp = Fingerprint(
+            id = "test.ambiguous",
+            returnType = "Z",
+            parameterTypes = listOf("I"),
+            instructionCount = 4,
+            registerCount = 3,
+            opcodeHistogram = mapOf("RETURN" to 2)
+        )
+        val methods = listOf(
+            MethodIndex("Lone/A;", "x", "Z", listOf("I"), 1, 4, 3, mapOf("RETURN" to 2)),
+            MethodIndex("Lone/B;", "y", "Z", listOf("I"), 1, 4, 3, mapOf("RETURN" to 2))
+        )
+        val result = FingerprintMatcher.match(
+            listOf(DexIndex("classes.dex", 2, 2, emptyList(), methods)),
+            listOf(fp)
+        ).single()
+
+        assertEquals("REVIEW", result.status)
+        assertTrue(result.candidates.size >= 2)
     }
 
     @Test
