@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Telegram Differential Compatibility Report",
+  "type": "object",
+  "required": ["schemaVersion", "oldApk", "newApk", "summary", "migrations"],
+  "properties": {
+    "schemaVersion": { "type": "string" },
+    "oldApk": { "$ref": "#/$defs/apk" },
+    "newApk": { "$ref": "#/$defs/apk" },
+    "summary": {
+      "type": "object",
+      "required": ["oldMethods", "newMethods", "unchangedMethods", "migratedMethods", "reviewMethods", "brokenMethods"],
+      "properties": {
+        "oldMethods": { "type": "integer", "minimum": 0 },
+        "newMethods": { "type": "integer", "minimum": 0 },
+        "unchangedMethods": { "type": "integer", "minimum": 0 },
+        "migratedMethods": { "type": "integer", "minimum": 0 },
+        "reviewMethods": { "type": "integer", "minimum": 0 },
+        "brokenMethods": { "type": "integer", "minimum": 0 }
+      },
+      "additionalProperties": true
+    },
+    "migrations": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/migration" }
+    }
+  },
+  "$defs": {
+    "apk": {
+      "type": "object",
+      "required": ["packageName", "versionName", "versionCode", "sha256", "dexCount"],
+      "properties": {
+        "packageName": { "type": "string" },
+        "versionName": { "type": "string" },
+        "versionCode": { "type": "integer" },
+        "sha256": { "type": "string" },
+        "dexCount": { "type": "integer", "minimum": 0 }
+      },
+      "additionalProperties": true
+    },
+    "migration": {
+      "type": "object",
+      "required": ["oldSignature", "status", "confidence", "candidates"],
+      "properties": {
+        "oldSignature": { "type": "string" },
+        "newSignature": { "type": ["string", "null"] },
+        "status": { "enum": ["MIGRATED", "REVIEW", "BROKEN"] },
+        "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+        "classContextConfidence": { "type": ["number", "null"], "minimum": 0, "maximum": 1 },
+        "candidates": { "type": "array", "items": { "type": "string" } }
+      },
+      "additionalProperties": true
+    }
+  }
+}
