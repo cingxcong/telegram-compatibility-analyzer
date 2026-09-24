@@ -30,7 +30,11 @@ object DifferentialAnalyzer {
         val classContextScore: Double
     ) {
         val combinedScore: Double
-            get() = structuralScore * (1.0 - CLASS_CONTEXT_WEIGHT) + classContextScore * CLASS_CONTEXT_WEIGHT
+            get() = if (classContextScore > 0.0) {
+                structuralScore * (1.0 - CLASS_CONTEXT_WEIGHT) + classContextScore * CLASS_CONTEXT_WEIGHT
+            } else {
+                structuralScore
+            }
     }
 
     fun compare(
