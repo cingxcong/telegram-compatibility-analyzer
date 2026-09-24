@@ -79,6 +79,40 @@ jobs:
             exit 1
           fi
 
+      - name: Validate target Telegram builds
+        run: |
+          set -euo pipefail
+          gradle --quiet :analyzer:run --args="--inspect build/apks/old.apk" > build/apks/old-metadata.json
+          gradle --quiet :analyzer:run --args="--inspect build/apks/new.apk" > build/apks/new-metadata.json
+
+          echo "Old APK:"
+          jq '{packageName, versionName, versionCode, sha256, dexCount}' build/apks/old-metadata.json
+          echo "New APK:"
+          jq '{packageName, versionName, versionCode, sha256, dexCount}' build/apks/new-metadata.json
+
+          validate() {
+            local label="$1"
+            local file="$2"
+            local expected_version="$3"
+            local expected_code="$4"
+
+            test "$(jq -r '.packageName' "$file")" = "org.telegram.messenger" || {
+              echo "::error::$label APK package must be org.telegram.messenger"
+              exit 1
+            }
+            test "$(jq -r '.versionName' "$file")" = "$expected_version" || {
+              echo "::error::$label APK versionName must be $expected_version"
+              exit 1
+            }
+            test "$(jq -r '.versionCode' "$file")" = "$expected_code" || {
+              echo "::error::$label APK versionCode must be $expected_code"
+              exit 1
+            }
+          }
+
+          validate "Old" build/apks/old-metadata.json "12.10.3" "70892"
+          validate "New" build/apks/new-metadata.json "12.10.4" "70992"
+
       - name: Run differential analyzer
         run: |
           gradle :analyzer:test :analyzer:run --args="--diff ../build/apks/old.apk ../build/apks/new.apk ../build/report"
