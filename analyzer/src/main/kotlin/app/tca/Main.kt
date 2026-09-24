@@ -16,8 +16,8 @@ fun main(args: Array<String>) {
         require(args.size >= 3) { "Usage: analyzer --diff <old.apk> <new.apk>" }
         val oldMetadata = ApkIntake.inspect(args[1])
         val newMetadata = ApkIntake.inspect(args[2])
-        val oldIndex = DexIndexer.indexApk(File(args[1]))
-        val newIndex = DexIndexer.indexApk(File(args[2]))
+        val oldIndex = DexIndexer.indexApkCached(File(args[1]), oldMetadata.sha256)
+        val newIndex = DexIndexer.indexApkCached(File(args[2]), newMetadata.sha256)
         val report = DifferentialAnalyzer.compare(oldMetadata, newMetadata, oldIndex, newIndex)
         val json = jacksonObjectMapper().writerWithDefaultPrettyPrinter().writeValueAsString(report)
         val outputDir = args.getOrNull(3)?.let(::File)
@@ -55,7 +55,7 @@ fun main(args: Array<String>) {
 
     val apkFile = File(apkPath)
     val metadata = ApkIntake.inspect(apkPath)
-    val dexIndexes = DexIndexer.indexApk(apkFile)
+    val dexIndexes = DexIndexer.indexApkCached(apkFile, metadata.sha256)
 
     val fingerprintPath = args.getOrNull(1)
     val fingerprintSet = if (fingerprintPath != null) {
