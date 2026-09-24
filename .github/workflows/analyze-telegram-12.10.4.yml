@@ -1,0 +1,48 @@
+name: Analyze Telegram 12.10.4 APK
+
+on:
+  push:
+    branches:
+      - analyze-telegram-12.10.4
+
+permissions:
+  contents: read
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Download official Telegram APK
+        run: |
+          set -euo pipefail
+          mkdir -p build/apks
+          curl --fail --location --retry 3 --retry-all-errors --output build/apks/telegram-12.10.4.apk https://telegram.org/dl/android/apk
+          sha256sum build/apks/telegram-12.10.4.apk
+          ls -lh build/apks/telegram-12.10.4.apk
+
+      - name: Run APK analyzer
+        run: |
+          set -euo pipefail
+          gradle :analyzer:test :analyzer:run --args="build/apks/telegram-12.10.4.apk"
+
+      - name: Upload analyzer output
+        uses: actions/upload-artifact@v4
+        with:
+          name: telegram-12.10.4-analysis
+          path: |
+            build/**
+            analyzer/build/**
+          if-no-files-found: warn
