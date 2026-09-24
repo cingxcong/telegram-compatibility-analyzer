@@ -1,13 +1,19 @@
 package app.tca
 
-import java.util.Locale
+data class MigrationCandidate(
+    val signature: String,
+    val combinedScore: Double,
+    val structuralScore: Double,
+    val classContextScore: Double,
+    val callContextScore: Double
+)
 
 data class MethodMigration(
     val oldSignature: String,
     val newSignature: String? = null,
     val status: String,
     val confidence: Double,
-    val candidates: List<String> = emptyList(),
+    val candidates: List<MigrationCandidate> = emptyList(),
     val classContextConfidence: Double? = null
 )
 
@@ -122,13 +128,12 @@ object DifferentialAnalyzer {
             status = status,
             confidence = best.combinedScore.coerceIn(0.0, 1.0),
             candidates = candidates.map {
-                "%.4f structural=%.4f class=%.4f calls=%.4f %s".format(
-                    Locale.ROOT,
-                    it.combinedScore,
-                    it.structuralScore,
-                    it.classContextScore,
-                    it.callContextScore,
-                    it.method.signature
+                MigrationCandidate(
+                    signature = it.method.signature,
+                    combinedScore = it.combinedScore,
+                    structuralScore = it.structuralScore,
+                    classContextScore = it.classContextScore,
+                    callContextScore = it.callContextScore
                 )
             },
             classContextConfidence = mappedClass?.confidence
