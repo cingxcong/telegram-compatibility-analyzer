@@ -8,7 +8,7 @@ fun main(args: Array<String>) {
         println("telegram-compatibility-analyzer")
         println("Usage:")
         println("  analyzer <telegram.apk> [fingerprints.json]")
-        println("  analyzer --diff <old.apk> <new.apk>")
+        println("  analyzer --diff <old.apk> <new.apk> [output-dir]")
         return
     }
 
@@ -19,7 +19,35 @@ fun main(args: Array<String>) {
         val oldIndex = DexIndexer.indexApk(File(args[1]))
         val newIndex = DexIndexer.indexApk(File(args[2]))
         val report = DifferentialAnalyzer.compare(oldMetadata, newMetadata, oldIndex, newIndex)
-        println(jacksonObjectMapper().writerWithDefaultPrettyPrinter().writeValueAsString(report))
+        val json = jacksonObjectMapper().writerWithDefaultPrettyPrinter().writeValueAsString(report)
+        val outputDir = args.getOrNull(3)?.let(::File)
+        if (outputDir != null) {
+            outputDir.mkdirs()
+            File(outputDir, "differential-report.json").writeText(json)
+            File(outputDir, "differential-summary.md").writeText(
+                buildString {
+                    appendLine("# Telegram Compatibility Differential Report")
+                    appendLine()
+                    appendLine("## APKs")
+                    appendLine()
+                    appendLine("- Old: ${oldMetadata.versionName} (${oldMetadata.versionCode})")
+                    appendLine("- New: ${newMetadata.versionName} (${newMetadata.versionCode})")
+                    appendLine("- Old SHA-256: ${oldMetadata.sha256}")
+                    appendLine("- New SHA-256: ${newMetadata.sha256}")
+                    appendLine()
+                    appendLine("## Summary")
+                    appendLine()
+                    report.summary.forEach { (key, value) -> appendLine("- **$key:** $value") }
+                    appendLine()
+                    appendLine("## Migrations")
+                    appendLine()
+                    report.migrations.take(200).forEach {
+                        appendLine("- ${it.status} (${"%.4f".format(java.util.Locale.ROOT, it.confidence)}): ${it.oldSignature} -> ${it.newSignature ?: "review/broken"}")
+                    }
+                }
+            )
+        }
+        println(json)
         return
     }
 
