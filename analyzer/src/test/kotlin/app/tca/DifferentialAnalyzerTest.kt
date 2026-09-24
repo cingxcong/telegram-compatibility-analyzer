@@ -35,6 +35,7 @@ class DifferentialAnalyzerTest {
         assertEquals("MIGRATED", migration.status)
         assertEquals(newMethod.signature, migration.newSignature)
         assertTrue(migration.confidence >= 0.95)
+        assertEquals(1.0, migration.candidates.single().neighborhoodScore)
     }
 
     @Test
