@@ -83,6 +83,24 @@ jobs:
         run: |
           gradle :analyzer:test :analyzer:run --args="--diff ../build/apks/old.apk ../build/apks/new.apk ../build/report"
 
+      - name: Publish run summary
+        run: |
+          set -euo pipefail
+          report="build/report/differential-report.json"
+          test -s "$report"
+          {
+            echo "## Telegram compatibility report"
+            echo
+            echo "| Metric | Value |"
+            echo "| --- | ---: |"
+            jq -r '.summary | to_entries[] | "| \(.key) | \(.value) |"' "$report"
+            echo
+            echo "### Migration status"
+            jq -r '[.migrations[].status] | group_by(.) | map({status: .[0], count: length}) | .[] | "- **\(.status)**: \(.count)"' "$report"
+            echo
+            echo "Full JSON and Markdown reports are attached as the workflow artifact."
+          } >> "$GITHUB_STEP_SUMMARY"
+
       - name: Upload reports
         uses: actions/upload-artifact@v4
         with:
