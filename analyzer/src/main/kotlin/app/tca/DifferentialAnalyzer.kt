@@ -22,18 +22,23 @@ data class DifferentialReport(
 object DifferentialAnalyzer {
     private const val MIGRATED_THRESHOLD = 0.95
     private const val MARGIN_THRESHOLD = 0.08
-    private const val CLASS_CONTEXT_WEIGHT = 0.15
+    private const val CLASS_CONTEXT_WEIGHT = 0.12
+    private const val CALL_CONTEXT_WEIGHT = 0.20
 
     private data class ScoredMethod(
         val method: MethodIndex,
         val structuralScore: Double,
-        val classContextScore: Double
+        val classContextScore: Double,
+        val callContextScore: Double
     ) {
         val combinedScore: Double
-            get() = if (classContextScore > 0.0) {
-                structuralScore * (1.0 - CLASS_CONTEXT_WEIGHT) + classContextScore * CLASS_CONTEXT_WEIGHT
-            } else {
-                structuralScore
+            get() {
+                val classWeight = if (classContextScore > 0.0) CLASS_CONTEXT_WEIGHT else 0.0
+                val callWeight = if (callContextScore > 0.0) CALL_CONTEXT_WEIGHT else 0.0
+                val structuralWeight = 1.0 - classWeight - callWeight
+                return structuralScore * structuralWeight +
+                    classContextScore * classWeight +
+                    callContextScore * callWeight
             }
     }
 
@@ -87,10 +92,11 @@ object DifferentialAnalyzer {
         val candidates = newMethods.asSequence()
             .map { method ->
                 val structural = FingerprintMatcher.score(old, method)
-                val context = mappedClass?.let { mapping ->
+                val classContext = mappedClass?.let { mapping ->
                     if (mapping.newClass == method.definingClass) mapping.confidence else 0.0
                 } ?: 0.0
-                ScoredMethod(method, structural, context)
+                val callContext = callPrototypeSimilarity(old.callPrototypeHistogram, method.callPrototypeHistogram)
+                ScoredMethod(method, structural, classContext, callContext)
             }
             .filter { it.structuralScore > 0.0 }
             .sortedByDescending { it.combinedScore }
@@ -116,16 +122,32 @@ object DifferentialAnalyzer {
             status = status,
             confidence = best.combinedScore.coerceIn(0.0, 1.0),
             candidates = candidates.map {
-                "%.4f structural=%.4f class=%.4f %s".format(
+                "%.4f structural=%.4f class=%.4f calls=%.4f %s".format(
                     Locale.ROOT,
                     it.combinedScore,
                     it.structuralScore,
                     it.classContextScore,
+                    it.callContextScore,
                     it.method.signature
                 )
             },
             classContextConfidence = mappedClass?.confidence
         )
+    }
+
+    private fun callPrototypeSimilarity(old: Map<String, Int>, current: Map<String, Int>): Double {
+        if (old.isEmpty() && current.isEmpty()) return 1.0
+        if (old.isEmpty() || current.isEmpty()) return 0.0
+        val keys = old.keys union current.keys
+        val oldTotal = old.values.sum().coerceAtLeast(1)
+        val currentTotal = current.values.sum().coerceAtLeast(1)
+        val distance = keys.sumOf { key ->
+            kotlin.math.abs(
+                old.getOrDefault(key, 0).toDouble() / oldTotal -
+                    current.getOrDefault(key, 0).toDouble() / currentTotal
+            )
+        }
+        return (1.0 - distance / 2.0).coerceIn(0.0, 1.0)
     }
 
     private data class ClassMapping(
