@@ -5,6 +5,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 import java.io.File
 import java.util.zip.ZipEntry
+import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import java.util.zip.ZipOutputStream
 
 class ApkIntakeTest {
@@ -32,3 +33,36 @@ class ApkIntakeTest {
         assertTrue(result.sizeBytes > 0)
     }
 }
+
+
+    @Test
+    fun loadsSha256KeyedDexIndexFromCache() {
+        val apk = File.createTempFile("tca-cache-test", ".apk")
+        val cacheDir = File.createTempFile("tca-cache", "").apply {
+            delete()
+            mkdirs()
+        }
+        apk.deleteOnExit()
+        cacheDir.deleteOnExit()
+
+        val cached = listOf(
+            DexIndex(
+                "classes.dex",
+                1,
+                1,
+                listOf(ClassIndex("Lexample/Test;", "Ljava/lang/Object;", emptyList(), 1, 1, 0)),
+                listOf(
+                    MethodIndex(
+                        "Lexample/Test;", "probe", "Z", emptyList(), 1, 1, 1,
+                        mapOf("RETURN" to 1)
+                    )
+                )
+            )
+        )
+        val sha = "a".repeat(64)
+        val cacheFile = File(cacheDir, "$sha-api35-v1.json")
+        jacksonObjectMapper().writeValue(cacheFile, cached)
+
+        val result = DexIndexer.indexApkCached(apk, sha, cacheDir = cacheDir)
+        assertEquals(cached, result)
+    }
