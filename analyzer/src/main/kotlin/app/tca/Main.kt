@@ -39,10 +39,10 @@ fun main(args: Array<String>) {
                     appendLine()
                     report.summary.forEach { (key, value) -> appendLine("- **$key:** $value") }
                     appendLine()
-                    appendLine("## Migrations")
+                    appendLine("## Evidence breakdown")\n                    appendLine()\n                    appendLine("Each candidate exposes weighted evidence contributions: structural, class context, call context, and neighborhood.")\n                    appendLine()\n                    appendLine("## Migrations")
                     appendLine()
                     report.migrations.take(200).forEach {
-                        appendLine("- ${it.status} (${"%.4f".format(java.util.Locale.ROOT, it.confidence)}): ${it.oldSignature} -> ${it.newSignature ?: "review/broken"}")
+                        appendLine("- ${it.status} (${"%.4f".format(java.util.Locale.ROOT, it.confidence)}): ${it.oldSignature} -> ${it.newSignature ?: "review/broken"}")\n                        it.candidates.firstOrNull()?.let { candidate ->\n                            val e = candidate.evidence\n                            appendLine("  - Evidence: structural=${"%.4f".format(java.util.Locale.ROOT, e.structural)}, class=${"%.4f".format(java.util.Locale.ROOT, e.classContext)}, call=${"%.4f".format(java.util.Locale.ROOT, e.callContext)}, neighborhood=${"%.4f".format(java.util.Locale.ROOT, e.neighborhood)}")\n                        }
                     }
                 }
             )
