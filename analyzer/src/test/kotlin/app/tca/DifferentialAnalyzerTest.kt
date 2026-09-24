@@ -26,7 +26,7 @@ class DifferentialAnalyzerTest {
         assertEquals(newMethod.signature, migration.newSignature)
         assertTrue(migration.confidence >= 0.95)
         val evidence = migration.candidates.single().evidence
-        assertEquals(1.0, evidence.structural + evidence.classContext + evidence.callContext + evidence.neighborhood, 0.0001)
+        assertEquals(migration.candidates.single().combinedScore, evidence.structural + evidence.classContext + evidence.callContext + evidence.neighborhood, 0.0001)
         assertEquals(1.0, migration.candidates.single().neighborhoodScore)
     }
 
