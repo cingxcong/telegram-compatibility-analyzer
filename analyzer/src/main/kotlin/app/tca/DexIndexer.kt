@@ -60,8 +60,9 @@ object DexIndexer {
         val dexFile = DexBackedDexFile.fromInputStream(Opcodes.forApi(apiLevel), bytes.inputStream())
         val classes = dexFile.classes.toList().sortedBy { it.type }
         val classIndexes = classes.map(::indexClass)
+        val classByType = classes.associateBy { it.type }
         val methods = classes.flatMap { it.methods }.map { method ->
-            indexMethod(method, classes)
+            indexMethod(method, classByType)
         }.sortedBy { it.signature }
 
         return DexIndex(
@@ -83,7 +84,7 @@ object DexIndexer {
             fieldCount = classDef.fields.count()
         )
 
-    private fun indexMethod(method: Method, classes: List<ClassDef>): MethodIndex {
+    private fun indexMethod(method: Method, classes: Map<String, ClassDef>): MethodIndex {
         val implementation = method.implementation
         val histogram = linkedMapOf<String, Int>()
         var instructionCount = 0
@@ -94,7 +95,8 @@ object DexIndexer {
             histogram[opcode] = (histogram[opcode] ?: 0) + 1
         }
 
-        val classDef = classes.first { it.type == method.definingClass }
+        val classDef = classes[method.definingClass]
+            ?: error("Defining class not found: \${method.definingClass}")
 
         return MethodIndex(
             definingClass = method.definingClass,
