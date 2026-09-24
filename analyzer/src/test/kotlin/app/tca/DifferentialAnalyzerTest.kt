@@ -27,7 +27,8 @@ class DifferentialAnalyzerTest {
         assertTrue(migration.confidence >= 0.95)
         val evidence = migration.candidates.single().evidence
         assertEquals(migration.candidates.single().combinedScore, evidence.structural + evidence.classContext + evidence.callContext + evidence.neighborhood, 0.0001)
-        assertEquals(1.0, migration.candidates.single().neighborhoodScore)
+        assertEquals(0.0, migration.candidates.single().neighborhoodScore)
+        assertEquals(0.0, migration.candidates.single().callContextScore)
     }
 
     @Test
@@ -46,6 +47,23 @@ class DifferentialAnalyzerTest {
         )
         assertEquals("REVIEW", report.migrations.single().status)
         assertTrue(report.migrations.single().newSignature == null)
+    }
+
+    @Test
+    fun emptyContextDoesNotAddConfidence() {
+        val old = MethodIndex(
+            "Lold/A;", "probe", "Z", listOf("I"), 1, 4, 2, mapOf("RETURN" to 1)
+        )
+        val current = old.copy(definingClass = "Lnew/A;")
+        val report = DifferentialAnalyzer.compare(
+            metadata("old", 1, "old"), metadata("new", 2, "new"),
+            listOf(DexIndex("classes.dex", 1, 1, emptyList(), listOf(old))),
+            listOf(DexIndex("classes.dex", 1, 1, emptyList(), listOf(current)))
+        )
+        val candidate = report.migrations.single().candidates.single()
+        assertEquals(0.0, candidate.callContextScore)
+        assertEquals(0.0, candidate.neighborhoodScore)
+        assertEquals(candidate.structuralScore, candidate.combinedScore, 0.0001)
     }
 
     private fun metadata(version: String, code: Int, sha: String) = ApkMetadata(
