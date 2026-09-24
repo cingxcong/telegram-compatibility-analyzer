@@ -81,7 +81,7 @@ jobs:
 
       - name: Run differential analyzer
         run: |
-          gradle :analyzer:test :analyzer:run --args="--diff build/apks/old.apk build/apks/new.apk build/report"
+          gradle :analyzer:test :analyzer:run --args="--diff ../build/apks/old.apk ../build/apks/new.apk ../build/report"
 
       - name: Upload reports
         uses: actions/upload-artifact@v4
