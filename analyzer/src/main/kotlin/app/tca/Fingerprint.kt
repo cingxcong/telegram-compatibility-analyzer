@@ -68,7 +68,7 @@ object FingerprintMatcher {
                 (fp.returnType == null || method.returnType == fp.returnType) &&
                     (fp.parameterTypes.isEmpty() || method.parameterTypes == fp.parameterTypes)
             }
-            .map { method -> ScoredCandidate(method, score(method, fp)) }
+            .map { method -> ScoredCandidate(method, StructuralSimilarity.score(method, fp)) }
             .filter { it.score > 0.0 }
             .sortedByDescending { it.score }
             .take(20)
@@ -101,7 +101,7 @@ object FingerprintMatcher {
     private fun formatCandidate(candidate: ScoredCandidate): String =
         "%.4f %s".format(java.util.Locale.ROOT, candidate.score, candidate.method.signature)
 
-    private fun score(method: MethodIndex, fp: Fingerprint): Double {
+    fun score(method: MethodIndex, fp: Fingerprint): Double {
         var total = 0.0
         var weight = 0.0
 
@@ -133,6 +133,21 @@ object FingerprintMatcher {
 
         return if (weight == 0.0) 0.0 else total / weight
     }
+
+    fun score(old: MethodIndex, current: MethodIndex): Double =
+        score(
+            current,
+            Fingerprint(
+                id = old.signature,
+                returnType = old.returnType,
+                parameterTypes = old.parameterTypes,
+                instructionCount = old.instructionCount,
+                registerCount = old.registerCount,
+                opcodeHistogram = old.opcodeHistogram,
+                classSuperType = old.classSuperType,
+                classInterfaces = old.classInterfaces
+            )
+        )
 
     private fun similarity(expected: Double, actual: Double): Double {
         if (expected == 0.0 && actual == 0.0) return 1.0
