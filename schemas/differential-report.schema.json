@@ -38,6 +38,18 @@
       },
       "additionalProperties": true
     },
+    "candidate": {
+      "type": "object",
+      "required": ["signature", "combinedScore", "structuralScore", "classContextScore", "callContextScore"],
+      "properties": {
+        "signature": { "type": "string" },
+        "combinedScore": { "type": "number", "minimum": 0, "maximum": 1 },
+        "structuralScore": { "type": "number", "minimum": 0, "maximum": 1 },
+        "classContextScore": { "type": "number", "minimum": 0, "maximum": 1 },
+        "callContextScore": { "type": "number", "minimum": 0, "maximum": 1 }
+      },
+      "additionalProperties": false
+    },
     "migration": {
       "type": "object",
       "required": ["oldSignature", "status", "confidence", "candidates"],
@@ -47,7 +59,10 @@
         "status": { "enum": ["MIGRATED", "REVIEW", "BROKEN"] },
         "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
         "classContextConfidence": { "type": ["number", "null"], "minimum": 0, "maximum": 1 },
-        "candidates": { "type": "array", "items": { "type": "string" } }
+        "candidates": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/candidate" }
+        }
       },
       "additionalProperties": true
     }
