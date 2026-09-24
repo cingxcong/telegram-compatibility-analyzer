@@ -15,6 +15,9 @@ data class Fingerprint(
     val classSuperType: String? = null,
     val classInterfaces: List<String> = emptyList(),
     val tags: List<String> = emptyList(),
+    val branchCount: Int? = null,
+    val returnCount: Int? = null,
+    val throwCount: Int? = null,
     val automation: String = "review"
 )
 
@@ -121,7 +124,15 @@ object FingerprintMatcher {
             add(similarity(fp.registerCount.toDouble(), method.registerCount.toDouble()), 0.10)
         }
         if (fp.opcodeHistogram.isNotEmpty()) {
-            add(histogramSimilarity(fp.opcodeHistogram, method.opcodeHistogram), 0.25)
+            add(histogramSimilarity(fp.opcodeHistogram, method.opcodeHistogram), 0.15)
+        }
+        if (fp.branchCount != null || fp.returnCount != null || fp.throwCount != null) {
+            val shapeScores = listOfNotNull(
+                fp.branchCount?.let { similarity(it.toDouble(), method.branchCount.toDouble()) },
+                fp.returnCount?.let { similarity(it.toDouble(), method.returnCount.toDouble()) },
+                fp.throwCount?.let { similarity(it.toDouble(), method.throwCount.toDouble()) }
+            )
+            add(shapeScores.average(), 0.10)
         }
         if (fp.classSuperType != null || fp.classInterfaces.isNotEmpty()) {
             val superScore = if (fp.classSuperType == null) 1.0
@@ -144,6 +155,9 @@ object FingerprintMatcher {
                 instructionCount = old.instructionCount,
                 registerCount = old.registerCount,
                 opcodeHistogram = old.opcodeHistogram,
+                branchCount = old.branchCount,
+                returnCount = old.returnCount,
+                throwCount = old.throwCount,
                 classSuperType = old.classSuperType,
                 classInterfaces = old.classInterfaces
             )
