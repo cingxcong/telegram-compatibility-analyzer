@@ -40,13 +40,14 @@
     },
     "candidate": {
       "type": "object",
-      "required": ["signature", "combinedScore", "structuralScore", "classContextScore", "callContextScore"],
+      "required": ["signature", "combinedScore", "structuralScore", "classContextScore", "callContextScore", "neighborhoodScore"],
       "properties": {
         "signature": { "type": "string" },
         "combinedScore": { "type": "number", "minimum": 0, "maximum": 1 },
         "structuralScore": { "type": "number", "minimum": 0, "maximum": 1 },
         "classContextScore": { "type": "number", "minimum": 0, "maximum": 1 },
-        "callContextScore": { "type": "number", "minimum": 0, "maximum": 1 }
+        "callContextScore": { "type": "number", "minimum": 0, "maximum": 1 },
+        "neighborhoodScore": { "type": "number", "minimum": 0, "maximum": 1 }
       },
       "additionalProperties": false
     },
