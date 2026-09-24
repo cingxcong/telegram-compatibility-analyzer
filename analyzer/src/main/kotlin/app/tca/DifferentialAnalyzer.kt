@@ -1,11 +1,14 @@
 package app.tca
 
+import java.util.Locale
+
 data class MethodMigration(
     val oldSignature: String,
     val newSignature: String? = null,
     val status: String,
     val confidence: Double,
-    val candidates: List<String> = emptyList()
+    val candidates: List<String> = emptyList(),
+    val classContextConfidence: Double? = null
 )
 
 data class DifferentialReport(
@@ -19,6 +22,16 @@ data class DifferentialReport(
 object DifferentialAnalyzer {
     private const val MIGRATED_THRESHOLD = 0.95
     private const val MARGIN_THRESHOLD = 0.08
+    private const val CLASS_CONTEXT_WEIGHT = 0.15
+
+    private data class ScoredMethod(
+        val method: MethodIndex,
+        val structuralScore: Double,
+        val classContextScore: Double
+    ) {
+        val combinedScore: Double
+            get() = structuralScore * (1.0 - CLASS_CONTEXT_WEIGHT) + classContextScore * CLASS_CONTEXT_WEIGHT
+    }
 
     fun compare(
         oldMetadata: ApkMetadata,
@@ -30,11 +43,19 @@ object DifferentialAnalyzer {
         val newMethods = newIndexes.flatMap { it.methods }
         val newBySignature = newMethods.associateBy { it.signature }
         val newByPrototype = newMethods.groupBy { it.returnType to it.parameterTypes }
+        val oldClasses = oldIndexes.flatMap { it.classes }
+        val newClasses = newIndexes.flatMap { it.classes }
+        val classMappings = buildClassMappings(oldClasses, newClasses)
 
         val migrations = oldMethods.asSequence()
             .filter { old -> newBySignature[old.signature] == null }
-            .map { old -> migrate(old, newByPrototype[old.returnType to old.parameterTypes].orEmpty()) }
-            .filter { it.status != "UNCHANGED" }
+            .map { old ->
+                migrate(
+                    old,
+                    newByPrototype[old.returnType to old.parameterTypes].orEmpty(),
+                    classMappings
+                )
+            }
             .sortedWith(compareBy<MethodMigration> { it.status }.thenByDescending { it.confidence })
             .toList()
 
@@ -53,12 +74,22 @@ object DifferentialAnalyzer {
         )
     }
 
-    private fun migrate(old: MethodIndex, newMethods: List<MethodIndex>): MethodMigration {
+    private fun migrate(
+        old: MethodIndex,
+        newMethods: List<MethodIndex>,
+        classMappings: Map<String, ClassMapping>
+    ): MethodMigration {
+        val mappedClass = classMappings[old.definingClass]
         val candidates = newMethods.asSequence()
-            .filter { it.returnType == old.returnType && it.parameterTypes == old.parameterTypes }
-            .map { it to FingerprintMatcher.score(old, it) }
-            .filter { it.second > 0.0 }
-            .sortedByDescending { it.second }
+            .map { method ->
+                val structural = FingerprintMatcher.score(old, method)
+                val context = mappedClass?.let { mapping ->
+                    if (mapping.newClass == method.definingClass) mapping.confidence else 0.0
+                } ?: 0.0
+                ScoredMethod(method, structural, context)
+            }
+            .filter { it.structuralScore > 0.0 }
+            .sortedByDescending { it.combinedScore }
             .take(10)
             .toList()
 
@@ -67,9 +98,9 @@ object DifferentialAnalyzer {
         }
 
         val best = candidates.first()
-        val second = candidates.getOrNull(1)?.second ?: 0.0
-        val margin = best.second - second
-        val status = if (best.second >= MIGRATED_THRESHOLD && margin >= MARGIN_THRESHOLD) {
+        val second = candidates.getOrNull(1)?.combinedScore ?: 0.0
+        val margin = best.combinedScore - second
+        val status = if (best.combinedScore >= MIGRATED_THRESHOLD && margin >= MARGIN_THRESHOLD) {
             "MIGRATED"
         } else {
             "REVIEW"
@@ -77,11 +108,61 @@ object DifferentialAnalyzer {
 
         return MethodMigration(
             oldSignature = old.signature,
-            newSignature = if (status == "MIGRATED") best.first.signature else null,
+            newSignature = if (status == "MIGRATED") best.method.signature else null,
             status = status,
-            confidence = best.second.coerceIn(0.0, 1.0),
-            candidates = candidates.map { "%.4f %s".format(java.util.Locale.ROOT, it.second, it.first.signature) }
+            confidence = best.combinedScore.coerceIn(0.0, 1.0),
+            candidates = candidates.map {
+                "%.4f structural=%.4f class=%.4f %s".format(
+                    Locale.ROOT,
+                    it.combinedScore,
+                    it.structuralScore,
+                    it.classContextScore,
+                    it.method.signature
+                )
+            },
+            classContextConfidence = mappedClass?.confidence
         )
+    }
+
+    private data class ClassMapping(
+        val newClass: String,
+        val confidence: Double
+    )
+
+    private fun buildClassMappings(
+        oldClasses: List<ClassIndex>,
+        newClasses: List<ClassIndex>
+    ): Map<String, ClassMapping> {
+        val newByShape = newClasses.groupBy { it.methodCount to it.fieldCount }
+        return oldClasses.mapNotNull { old ->
+            val candidates = newByShape[old.methodCount to old.fieldCount].orEmpty()
+                .map { it to classSimilarity(old, it) }
+                .sortedByDescending { it.second }
+                .take(2)
+
+            val best = candidates.firstOrNull() ?: return@mapNotNull null
+            val second = candidates.getOrNull(1)?.second ?: 0.0
+            val margin = best.second - second
+            if (best.second < 0.80 || margin < 0.05) return@mapNotNull null
+
+            old.type to ClassMapping(best.first.type, best.second)
+        }.toMap()
+    }
+
+    private fun classSimilarity(old: ClassIndex, current: ClassIndex): Double {
+        val methodShape = kotlin.math.min(old.methodCount, current.methodCount).toDouble() /
+            maxOf(old.methodCount, current.methodCount).coerceAtLeast(1)
+        val fieldShape = kotlin.math.min(old.fieldCount, current.fieldCount).toDouble() /
+            maxOf(old.fieldCount, current.fieldCount).coerceAtLeast(1)
+        val interfaceShape = jaccard(old.interfaces.toSet(), current.interfaces.toSet())
+        val accessShape = if (old.accessFlags == current.accessFlags) 1.0 else 0.5
+        return methodShape * 0.45 + fieldShape * 0.20 + interfaceShape * 0.20 + accessShape * 0.15
+    }
+
+    private fun jaccard(old: Set<String>, current: Set<String>): Double {
+        if (old.isEmpty() && current.isEmpty()) return 1.0
+        if (old.isEmpty() || current.isEmpty()) return 0.0
+        return old.intersect(current).size.toDouble() / old.union(current).size.toDouble()
     }
 
     private fun apkMap(metadata: ApkMetadata): Map<String, Any?> = mapOf(
