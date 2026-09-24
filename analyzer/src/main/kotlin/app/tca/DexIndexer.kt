@@ -22,7 +22,10 @@ data class MethodIndex(
     val classSuperType: String? = null,
     val classInterfaces: List<String> = emptyList(),
     val callPrototypeHistogram: Map<String, Int> = emptyMap(),
-    val callTargetHistogram: Map<String, Int> = emptyMap()
+    val callTargetHistogram: Map<String, Int> = emptyMap(),
+    val branchCount: Int = 0,
+    val returnCount: Int = 0,
+    val throwCount: Int = 0
 ) {
     val signature: String
         get() = definingClass + "->" + name + "(" + parameterTypes.joinToString("") + ")" + returnType
@@ -95,11 +98,17 @@ object DexIndexer {
         var instructionCount = 0
         val callPrototypes = linkedMapOf<String, Int>()
         val callTargets = linkedMapOf<String, Int>()
+        var branchCount = 0
+        var returnCount = 0
+        var throwCount = 0
 
         implementation?.instructions?.forEach { instruction ->
             instructionCount++
             val opcode = instruction.opcode.name
             histogram[opcode] = (histogram[opcode] ?: 0) + 1
+            if (opcode.startsWith("IF_") || opcode == "GOTO" || opcode.startsWith("PACKED_SWITCH") || opcode.startsWith("SPARSE_SWITCH")) branchCount++
+            if (opcode.startsWith("RETURN")) returnCount++
+            if (opcode == "THROW") throwCount++
             if (instruction is ReferenceInstruction && instruction.reference is MethodReference) {
                 val ref = instruction.reference as MethodReference
                 val prototype = ReferenceUtil.getMethodDescriptor(ref).substringAfter("->")
@@ -123,6 +132,9 @@ object DexIndexer {
             opcodeHistogram = histogram.toSortedMap(),
             callPrototypeHistogram = callPrototypes.toSortedMap(),
             callTargetHistogram = callTargets.toSortedMap(),
+            branchCount = branchCount,
+            returnCount = returnCount,
+            throwCount = throwCount,
             classSuperType = classDef.superclass,
             classInterfaces = classDef.interfaces.sorted()
         )
