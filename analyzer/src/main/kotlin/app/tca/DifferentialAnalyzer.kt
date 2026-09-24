@@ -1,12 +1,20 @@
 package app.tca
 
+data class MigrationEvidence(
+    val structural: Double,
+    val classContext: Double,
+    val callContext: Double,
+    val neighborhood: Double
+)
+
 data class MigrationCandidate(
     val signature: String,
     val combinedScore: Double,
     val structuralScore: Double,
     val classContextScore: Double,
     val callContextScore: Double,
-    val neighborhoodScore: Double
+    val neighborhoodScore: Double,
+    val evidence: MigrationEvidence
 )
 
 data class MethodMigration(
@@ -31,6 +39,7 @@ object DifferentialAnalyzer {
     private const val MARGIN_THRESHOLD = 0.08
     private const val CLASS_CONTEXT_WEIGHT = 0.12
     private const val CALL_CONTEXT_WEIGHT = 0.20
+    private const val NEIGHBORHOOD_WEIGHT = 0.10
 
     private data class ScoredMethod(
         val method: MethodIndex,
@@ -39,18 +48,23 @@ object DifferentialAnalyzer {
         val callContextScore: Double,
         val neighborhoodScore: Double
     ) {
+        private val classWeight get() = if (classContextScore > 0.0) CLASS_CONTEXT_WEIGHT else 0.0
+        private val callWeight get() = if (callContextScore > 0.0) CALL_CONTEXT_WEIGHT else 0.0
+        private val neighborhoodWeight get() = if (neighborhoodScore > 0.0) NEIGHBORHOOD_WEIGHT else 0.0
+        private val structuralWeight get() = 1.0 - classWeight - callWeight - neighborhoodWeight
+
         val combinedScore: Double
-            get() {
-                val contextWeight =
-                    (if (classContextScore > 0.0) CLASS_CONTEXT_WEIGHT else 0.0) +
-                    (if (callContextScore > 0.0) CALL_CONTEXT_WEIGHT else 0.0) +
-                    (if (neighborhoodScore > 0.0) 0.10 else 0.0)
-                val structuralWeight = 1.0 - contextWeight
-                return structuralScore * structuralWeight +
-                    classContextScore * (if (classContextScore > 0.0) CLASS_CONTEXT_WEIGHT else 0.0) +
-                    callContextScore * (if (callContextScore > 0.0) CALL_CONTEXT_WEIGHT else 0.0) +
-                    neighborhoodScore * (if (neighborhoodScore > 0.0) 0.10 else 0.0)
-            }
+            get() = structuralScore * structuralWeight +
+                classContextScore * classWeight +
+                callContextScore * callWeight +
+                neighborhoodScore * neighborhoodWeight
+
+        fun evidence() = MigrationEvidence(
+            structural = structuralScore * structuralWeight,
+            classContext = classContextScore * classWeight,
+            callContext = callContextScore * callWeight,
+            neighborhood = neighborhoodScore * neighborhoodWeight
+        )
     }
 
     fun compare(
@@ -140,7 +154,8 @@ object DifferentialAnalyzer {
                     structuralScore = it.structuralScore,
                     classContextScore = it.classContextScore,
                     callContextScore = it.callContextScore,
-                    neighborhoodScore = it.neighborhoodScore
+                    neighborhoodScore = it.neighborhoodScore,
+                    evidence = it.evidence()
                 )
             },
             classContextConfidence = mappedClass?.confidence
@@ -170,10 +185,7 @@ object DifferentialAnalyzer {
         return (1.0 - distance / 2.0).coerceIn(0.0, 1.0)
     }
 
-    private data class ClassMapping(
-        val newClass: String,
-        val confidence: Double
-    )
+    private data class ClassMapping(val newClass: String, val confidence: Double)
 
     private fun buildClassMappings(
         oldClasses: List<ClassIndex>,
@@ -185,12 +197,10 @@ object DifferentialAnalyzer {
                 .map { it to classSimilarity(old, it) }
                 .sortedByDescending { it.second }
                 .take(2)
-
             val best = candidates.firstOrNull() ?: return@mapNotNull null
             val second = candidates.getOrNull(1)?.second ?: 0.0
             val margin = best.second - second
             if (best.second < 0.80 || margin < 0.05) return@mapNotNull null
-
             old.type to ClassMapping(best.first.type, best.second)
         }.toMap()
     }
