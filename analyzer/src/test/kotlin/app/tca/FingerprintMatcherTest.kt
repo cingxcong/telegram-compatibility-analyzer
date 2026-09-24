@@ -66,6 +66,46 @@ class FingerprintMatcherTest {
     }
 
     @Test
+    fun controlFlowShapeContributesToStructuralScore() {
+        val fingerprint = Fingerprint(
+            id = "test.controlFlow",
+            returnType = "Z",
+            parameterTypes = listOf("I"),
+            instructionCount = 6,
+            registerCount = 2,
+            opcodeHistogram = mapOf("IF_EQZ" to 1, "RETURN" to 1),
+            branchCount = 1,
+            returnCount = 1,
+            throwCount = 0
+        )
+        val matching = MethodIndex(
+            definingClass = "Lexample/Match;",
+            name = "a",
+            returnType = "Z",
+            parameterTypes = listOf("I"),
+            accessFlags = 1,
+            instructionCount = 6,
+            registerCount = 2,
+            opcodeHistogram = mapOf("IF_EQZ" to 1, "RETURN" to 1),
+            branchCount = 1,
+            returnCount = 1,
+            throwCount = 0
+        )
+        val divergent = matching.copy(
+            definingClass = "Lexample/Divergent;",
+            branchCount = 0,
+            returnCount = 3,
+            throwCount = 1
+        )
+
+        val matchingScore = FingerprintMatcher.score(matching, fingerprint)
+        val divergentScore = FingerprintMatcher.score(divergent, fingerprint)
+
+        assertTrue(matchingScore > divergentScore)
+        assertEquals(1.0, matchingScore)
+    }
+
+    @Test
     fun ambiguousStructuralCandidatesRequireReview() {
         val fp = Fingerprint(
             id = "test.ambiguous",
