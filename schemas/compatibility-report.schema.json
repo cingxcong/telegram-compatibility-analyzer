@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Telegram Compatibility Report",
+  "type": "object",
+  "required": ["schemaVersion", "apk", "summary", "fingerprints"],
+  "properties": {
+    "schemaVersion": { "type": "string" },
+    "apk": {
+      "type": "object",
+      "required": ["sha256"],
+      "properties": {
+        "path": { "type": "string" },
+        "url": { "type": "string" },
+        "packageName": { "type": "string" },
+        "versionName": { "type": "string" },
+        "versionCode": { "type": "integer" },
+        "sha256": { "type": "string" },
+        "dexCount": { "type": "integer" }
+      },
+      "additionalProperties": true
+    },
+    "summary": {
+      "type": "object",
+      "required": ["status"],
+      "properties": {
+        "status": { "enum": ["PASS", "REVIEW", "BROKEN"] },
+        "exactMatches": { "type": "integer" },
+        "migratedMatches": { "type": "integer" },
+        "reviewMatches": { "type": "integer" },
+        "brokenMatches": { "type": "integer" }
+      }
+    },
+    "fingerprints": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "status"],
+        "properties": {
+          "id": { "type": "string" },
+          "status": { "enum": ["EXACT", "MIGRATED", "REVIEW", "BROKEN"] },
+          "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+          "candidates": { "type": "array" }
+        },
+        "additionalProperties": true
+      }
+    }
+  },
+  "additionalProperties": true
+}
