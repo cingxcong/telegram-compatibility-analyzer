@@ -5,7 +5,8 @@ data class MigrationCandidate(
     val combinedScore: Double,
     val structuralScore: Double,
     val classContextScore: Double,
-    val callContextScore: Double
+    val callContextScore: Double,
+    val neighborhoodScore: Double
 )
 
 data class MethodMigration(
@@ -42,7 +43,8 @@ object DifferentialAnalyzer {
             get() {
                 val classWeight = if (classContextScore > 0.0) CLASS_CONTEXT_WEIGHT else 0.0
                 val callWeight = if (callContextScore > 0.0) CALL_CONTEXT_WEIGHT else 0.0
-                val structuralWeight = 1.0 - classWeight - callWeight
+                val neighborhoodWeight = 0.10
+                val structuralWeight = 1.0 - classWeight - callWeight - neighborhoodWeight
                 return structuralScore * structuralWeight +
                     classContextScore * classWeight +
                     callContextScore * callWeight
@@ -135,7 +137,8 @@ object DifferentialAnalyzer {
                     combinedScore = it.combinedScore,
                     structuralScore = it.structuralScore,
                     classContextScore = it.classContextScore,
-                    callContextScore = it.callContextScore
+                    callContextScore = it.callContextScore,
+                    neighborhoodScore = it.neighborhoodScore
                 )
             },
             classContextConfidence = mappedClass?.confidence
