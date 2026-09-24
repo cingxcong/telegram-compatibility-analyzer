@@ -68,7 +68,7 @@ object FingerprintMatcher {
                 (fp.returnType == null || method.returnType == fp.returnType) &&
                     (fp.parameterTypes.isEmpty() || method.parameterTypes == fp.parameterTypes)
             }
-            .map { method -> ScoredCandidate(method, StructuralSimilarity.score(method, fp)) }
+            .map { method -> ScoredCandidate(method, score(method, fp)) }
             .filter { it.score > 0.0 }
             .sortedByDescending { it.score }
             .take(20)
