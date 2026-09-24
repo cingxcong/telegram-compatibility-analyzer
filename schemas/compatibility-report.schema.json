@@ -39,7 +39,8 @@
           "id": { "type": "string" },
           "status": { "enum": ["EXACT", "MIGRATED", "REVIEW", "BROKEN"] },
           "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
-          "candidates": { "type": "array" }
+          "matchedSignature": { "type": ["string", "null"] },
+          "candidates": { "type": "array", "items": { "type": "string" } }
         },
         "additionalProperties": true
       }
