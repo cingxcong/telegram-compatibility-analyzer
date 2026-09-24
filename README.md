@@ -75,8 +75,8 @@ Example:
 gradle :analyzer:run --args="/path/to/telegram.apk"
 ```
 
-The bytecode layer uses Google's `com.android.tools.smali:smali-dexlib2:3.0.10`, which is the same major tool family used for the authoritative DEX representation. APK manifest metadata is read with `net.dongliu:apk-parser:2.6.10`. The Google smali project documents the `smali-dexlib2` artifact as the DEX library for reading/modifying/writing DEX files.
+The bytecode layer uses Google's `com.android.tools.smali:smali-dexlib2:3.0.10`, which is the same major tool family used for the authoritative DEX representation. APK manifest metadata is read with `net.dongliu:apk-parser:2.6.10`. Fingerprint/report JSON is handled with Jackson Kotlin. The Google smali project documents the `smali-dexlib2` artifact as the DEX library for reading/modifying/writing DEX files.
 
 ## Status
 
-🚧 Milestone 1 in progress: APK intake + bytecode indexer landed. Next: fingerprint schema/import and structural candidate matching.
+🚧 Milestone 2 in progress: fingerprint schema/import + exact bytecode matching landed. The CLI now emits a schema-shaped JSON compatibility report; structural migration and confidence scoring are next.
