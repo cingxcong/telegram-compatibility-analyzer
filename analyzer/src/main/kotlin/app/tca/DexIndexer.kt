@@ -65,10 +65,8 @@ object DexIndexer {
         val mapper = jacksonObjectMapper()
         if (cacheFile.isFile) {
             return runCatching {
-                mapper.readValue(
-                    cacheFile,
-                    mapper.typeFactory.constructCollectionType(List::class.java, DexIndex::class.java)
-                )
+                val type = mapper.typeFactory.constructCollectionType(List::class.java, DexIndex::class.java)
+                mapper.readValue<List<DexIndex>>(cacheFile, type)
             }.getOrElse {
                 cacheFile.delete()
                 buildAndCache(apk, apiLevel, cacheFile, mapper)
