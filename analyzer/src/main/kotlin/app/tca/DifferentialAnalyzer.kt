@@ -163,7 +163,6 @@ object DifferentialAnalyzer {
     }
 
     private fun targetOverlap(old: Map<String, Int>, current: Map<String, Int>): Double {
-        if (old.isEmpty() && current.isEmpty()) return 1.0
         if (old.isEmpty() || current.isEmpty()) return 0.0
         val oldKeys = old.keys
         val currentKeys = current.keys
@@ -171,7 +170,6 @@ object DifferentialAnalyzer {
     }
 
     private fun callPrototypeSimilarity(old: Map<String, Int>, current: Map<String, Int>): Double {
-        if (old.isEmpty() && current.isEmpty()) return 1.0
         if (old.isEmpty() || current.isEmpty()) return 0.0
         val keys = old.keys union current.keys
         val oldTotal = old.values.sum().coerceAtLeast(1)
@@ -211,8 +209,13 @@ object DifferentialAnalyzer {
         val fieldShape = kotlin.math.min(old.fieldCount, current.fieldCount).toDouble() /
             maxOf(old.fieldCount, current.fieldCount).coerceAtLeast(1)
         val interfaceShape = jaccard(old.interfaces.toSet(), current.interfaces.toSet())
+        val superShape = if (old.superType == current.superType) 1.0 else 0.0
         val accessShape = if (old.accessFlags == current.accessFlags) 1.0 else 0.5
-        return methodShape * 0.45 + fieldShape * 0.20 + interfaceShape * 0.20 + accessShape * 0.15
+        return methodShape * 0.40 +
+            fieldShape * 0.15 +
+            interfaceShape * 0.15 +
+            superShape * 0.20 +
+            accessShape * 0.10
     }
 
     private fun jaccard(old: Set<String>, current: Set<String>): Double {
