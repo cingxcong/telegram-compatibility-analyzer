@@ -8,7 +8,26 @@ fun main(args: Array<String>) {
         println("telegram-compatibility-analyzer")
         println("Usage:")
         println("  analyzer <telegram.apk> [fingerprints.json]")
+        println("  analyzer --inspect <telegram.apk>")
         println("  analyzer --diff <old.apk> <new.apk> [output-dir]")
+        return
+    }
+
+    if (args.first() == "--inspect") {
+        require(args.size == 2) { "Usage: analyzer --inspect <telegram.apk>" }
+        val metadata = ApkIntake.inspect(File(args[1]).absoluteFile.path)
+        val report = mapOf(
+            "path" to metadata.path,
+            "packageName" to metadata.packageName,
+            "versionName" to metadata.versionName,
+            "versionCode" to metadata.versionCode,
+            "sha256" to metadata.sha256,
+            "dexCount" to metadata.dexEntries.size,
+            "dexEntries" to metadata.dexEntries,
+            "nativeLibraries" to metadata.nativeLibraries,
+            "sizeBytes" to metadata.sizeBytes
+        )
+        println(jacksonObjectMapper().writerWithDefaultPrettyPrinter().writeValueAsString(report))
         return
     }
 
