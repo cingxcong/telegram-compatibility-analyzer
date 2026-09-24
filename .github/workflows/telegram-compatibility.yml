@@ -42,6 +42,9 @@ jobs:
           distribution: temurin
           java-version: 21
 
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
       - name: Download APKs
         env:
           OLD_URL: ${{ inputs.old_apk_url }}
@@ -71,11 +74,14 @@ jobs:
             echo "::error::New APK SHA-256 mismatch"
             exit 1
           fi
+          if [ "$old_actual" = "$new_actual" ]; then
+            echo "::error::Old and new APKs are identical; provide two different Telegram builds"
+            exit 1
+          fi
 
       - name: Run differential analyzer
         run: |
-          chmod +x ./gradlew
-          ./gradlew :analyzer:test :analyzer:run --args="--diff build/apks/old.apk build/apks/new.apk build/report"
+          gradle :analyzer:test :analyzer:run --args="--diff build/apks/old.apk build/apks/new.apk build/report"
 
       - name: Upload reports
         uses: actions/upload-artifact@v4
